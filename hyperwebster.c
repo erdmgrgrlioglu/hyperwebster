@@ -1,97 +1,89 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
+#include <math.h>
 
-#define COUNT_OF(x) ((sizeof(x) / sizeof(0 [x])) / ((size_t)(!(sizeof(x) % sizeof(0 [x])))))
-#define MAX_SIZE 100
+//could be better
 
-typedef struct
+int bit_length(int n)
 {
-    char arr[MAX_SIZE];
-    int top;
-} Stack;
-
-void initialize(Stack *stack)
-{
-    stack->top = -1;
-}
-
-bool isEmpty(Stack *stack)
-{
-    return stack->top == -1;
-}
-
-bool isFull(Stack *stack)
-{
-    return stack->top == MAX_SIZE - 1;
-}
-
-void push(Stack *stack, char value)
-{
-    if (isFull(stack))
-        return;
-    stack->arr[++stack->top] = value;
-}
-
-char pop(Stack *stack)
-{
-    if (isEmpty(stack))
-        return -1;
-
-    char popped = stack->arr[stack->top];
-    stack->top--;
-    return popped;
-}
-
-int peek(Stack *stack)
-{
-    if (isEmpty(stack))
-        return -1;
-    return stack->arr[stack->top];
-}
-
-char *printStack(Stack *stack, bool mode)
-{
-    static char buffer[MAX_SIZE + 1];
-    int i;
-    for (i = 0; i <= stack->top; i++)
-        if (mode)
-            buffer[i] = stack->arr[i] + 'A';
-        else
-            buffer[i] = stack->arr[i] + '0';
-    buffer[i] = '\0';
-    return buffer;
-}
-
-// still could be better
-void hyperwebsterGenerator(char *alphabet[], size_t length, int wordLength, Stack *stack, FILE *fptr)
-{
-    for (size_t c = 0; c < length; c++)
+    int bits = 0;
+    do
     {
-        fprintf(fptr, printStack(stack, length != 2));
-        fprintf(fptr, alphabet[c]);
-        fprintf(fptr, "\n");
-        push(stack, c);
-        if (wordLength > 1)
-            hyperwebsterGenerator(alphabet, length, wordLength - 1, stack, fptr);
-        pop(stack);
+        bits++;
+        n >>= 1;
+    } while (n > 0);
+    return bits;
+}
+
+char **BinaryAlphabetGenerator(int n)
+{
+    if (n <= 0)
+        return NULL;
+
+    int max_value = n - 1;
+    int bits = bit_length(max_value);
+
+    char **alphabet = malloc(n * sizeof(char *));
+    if (!alphabet)
+        return NULL;
+
+    for (int i = 0; i < n; i++)
+    {
+        alphabet[i] = malloc(bits + 1); // +1 for '\0'
+        if (!alphabet[i])
+            return NULL;
+
+        for (int j = 0; j < bits; j++)
+            alphabet[i][j] = '0';
+
+        alphabet[i][bits] = '\0';
+
+        int value = i;
+        int pos = bits - 1;
+        while (value > 0 && pos >= 0)
+        {
+            alphabet[i][pos] = (value & 1) ? '1' : '0';
+            value >>= 1;
+            pos--;
+        }
     }
+    return alphabet;
+}
+
+void hyperwebsterGenerator(char *alphabet[], size_t length, size_t wordLength, FILE *fptr)
+{
+    for (size_t i = 0; i < length; i++)
+    {
+        fprintf(fptr, alphabet[i]);
+        if (wordLength > 1)
+            hyperwebsterGenerator(alphabet, length, wordLength - 1, fptr);
+    }
+}
+
+void hyperwebsterReader(char *alphabet[], size_t length, size_t wordLength, size_t index, FILE *fptr)
+{
+    size_t characterLength = bit_length(length - 1);
+    size_t chapterSize = 0;
+    for (size_t l = 0; l < wordLength; l++)
+    {
+        chapterSize += pow(length, l);
+    }
+
+    size_t size = ((index % chapterSize) + 1) * characterLength;
+    char buf[size];
+    fseek(fptr, chapterSize * floor(index / chapterSize) * characterLength, 0);
+    fwrite(buf, 1, fread(buf, 1, size, fptr), stdout);
 }
 
 int main()
 {
-    char *englishAlphabet[] = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"};
-    char *binaryAlphabet[] = {"0", "1"};
-    int wordLength = 5;
+    size_t wordLength = 3;
+    int numberOfCharactersInAlphabet = 2;
+    char **alphabet = BinaryAlphabetGenerator(numberOfCharactersInAlphabet);
+    FILE *fptr = fopen("hyperwebster.out", "w+");
 
-    FILE *fptr = fopen("hyperwebster.out", "w");
-    Stack *stack = (Stack *)malloc(sizeof(Stack));
-    initialize(stack);
-
-    hyperwebsterGenerator(englishAlphabet, COUNT_OF(englishAlphabet), wordLength, stack, fptr);
-    fprintf(fptr, "\n");
-    hyperwebsterGenerator(binaryAlphabet, COUNT_OF(binaryAlphabet), wordLength, stack, fptr);
+    hyperwebsterGenerator(alphabet, numberOfCharactersInAlphabet, wordLength, fptr);
+    hyperwebsterReader(alphabet, numberOfCharactersInAlphabet, wordLength, 13, fptr);
 
     fclose(fptr);
     return 0;
